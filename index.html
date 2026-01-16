@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>成語找字挑戰賽 - 強力震盪慶祝版</title>
+    <style>
+        :root { --primary: #1b5e20; --found: #c8e6c9; --select: #ff9800; --bg: #f9fbe7; --win: #ffd700; --accent: #ff5722; }
+        body { font-family: "Microsoft JhengHei", sans-serif; background: var(--bg); display: flex; flex-direction: column; align-items: center; min-height: 100vh; margin: 0; padding: 20px; overflow-x: hidden; }
+        
+        #confettiCanvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 999; }
+        .panel { background: white; padding: 15px 30px; border-radius: 50px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 30px; text-align: center; z-index: 10; }
+        #gameArea { display: none; flex-direction: column; align-items: center; width: 100%; gap: 20px; z-index: 10; }
+
+        /* 目標清單區域 */
+        .target-list { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; width: 100%; max-width: 800px; justify-content: center; margin-bottom: 10px; }
+        .target-item { display: flex; align-items: center; justify-content: center; padding: 12px 5px; background: #ffffff; border: 3px solid #81c784; border-radius: 15px; font-size: 1.2rem; font-weight: 900; color: #2e7d32; box-shadow: 0 4px 0px #c8e6c9; transition: all 0.2s; }
+
+        /* 核心修改：超劇烈震動動畫 */
+        @keyframes super-shake {
+            0% { transform: translate(0, 0) rotate(0deg) scale(1); }
+            10% { transform: translate(-8px, -4px) rotate(-5deg) scale(1.3); background-color: var(--win); }
+            20% { transform: translate(8px, 4px) rotate(5deg) scale(1.3); background-color: var(--accent); color: white; }
+            30% { transform: translate(-8px, 6px) rotate(-3deg) scale(1.3); }
+            40% { transform: translate(8px, -6px) rotate(3deg) scale(1.3); }
+            50% { transform: translate(-8px, -4px) rotate(-5deg) scale(1.3); }
+            60% { transform: translate(8px, 4px) rotate(5deg) scale(1.3); }
+            70% { transform: translate(-8px, 6px) rotate(-3deg) scale(1.3); }
+            80% { transform: translate(8px, -6px) rotate(3deg) scale(1.3); }
+            90% { transform: translate(-4px, 2px) rotate(-1deg) scale(1.1); }
+            100% { transform: translate(0, 0) rotate(0deg) scale(1); }
+        }
+        .shake-effect { 
+            animation: super-shake 0.5s ease-in-out both; 
+            z-index: 100;
+            border-color: var(--accent) !important;
+            box-shadow: 0 0 30px rgba(255, 87, 34, 0.5);
+        }
+
+        .target-item.done { background: #e0e0e0; color: #9e9e9e; text-decoration: line-through; border-color: #bdbdbd; box-shadow: none; transform: translateY(2px); transition: 0.5s; }
+
+        /* 網格與閃爍 */
+        .grid-box { background: #a5d6a7; padding: 15px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        .grid { display: grid; gap: 6px; user-select: none; }
+        .cell { background: white; text-align: center; font-weight: bold; cursor: pointer; border-radius: 8px; transition: 0.2s; color: #333; }
+        .cell.selected { background: var(--select) !important; color: white; transform: scale(1.1); z-index: 5; }
+        .cell.found { background: var(--found) !important; color: #1b5e20; cursor: default; }
+
+        @keyframes blink-strong {
+            0% { background-color: #fff; transform: scale(1); filter: brightness(1); }
+            33% { background-color: var(--win); transform: scale(1.3); filter: brightness(1.5); box-shadow: 0 0 20px var(--win); }
+            100% { background-color: var(--found); transform: scale(1); filter: brightness(1); }
+        }
+        .blink-effect { animation: blink-strong 0.3s ease-in-out 3; z-index: 10; }
+
+        select, button { padding: 12px 20px; font-size: 16px; border-radius: 10px; border: 1px solid #ddd; margin: 5px; cursor: pointer; }
+        button { background: var(--primary); color: white; border: none; font-weight: bold; }
+        h1 { color: #2e7d32; margin-top: 0; }
+    </style>
+</head>
+<body>
+
+    <canvas id="confettiCanvas"></canvas>
+    <h1>🔍 快樂找成語</h1>
+    
+    <div class="panel">
+        難度：<select id="diff">
+            <option value="幼兒" selected>5x5 幼兒版 (2個詞)</option>
+            <option value="低年級">8x8 低年級版 (5個詞)</option>
+            <option value="標準">10x10 標準版 (10個詞)</option>
+            <option value="達人">15x15 達人版 (15個詞)</option>
+        </select>
+        <button onclick="startGame()">建立遊戲</button>
+    </div>
+
+    <div id="gameArea">
+        <div class="target-list" id="targetList"></div>
+        <div class="grid-box"><div class="grid" id="gameGrid"></div></div>
+    </div>
+
+    <script>
+        // 500個成語清單
+        const IDIOMS = ["一毛不拔","似是而非","十全十美","一心一意","三心二意","四平八穩","五光十色","六神無主","七手八腳","八面玲瓏","九牛一毛","朝氣蓬勃","鴉雀無聲","一目十行","迫不及待","半途而廢","大公無私","守株待兔","畫蛇添足","掩耳盜鈴","亡羊補牢","拔苗助長","名列前茅","名正言順","言行一致","知行合一","如虎添翼","龍馬精神","生龍活虎","井底之蛙","對牛彈琴","望梅止渴","聞雞起舞","精益求精","鍥而不捨","堅持不懈","全力以赴","前程似錦","金玉良言","出口成章","妙語如珠","胸有成竹","循序漸進","廢寢忘食","懸樑刺股","鑿壁偷光","博學多才","溫故知新","不恥下問","舉一反三"];
+        const CHARS = "的一是在不了有和人這中大來上個國我到說們為子和你不後出道也得裡下自得之時後過而家多";
+        const SETTINGS = {
+            "幼兒": { size: 5, count: 2, cell: 75 },
+            "低年級": { size: 8, count: 5, cell: 55 },
+            "標準": { size: 10, count: 10, cell: 45 },
+            "達人": { size: 15, count: 15, cell: 38 }
+        };
+
+        let current = {}, grid = [], targets = [], foundWords = [], foundCoords = new Set(), first = null;
+
+        // 碎紙特效
+        const canvas = document.getElementById('confettiCanvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function createConfetti() {
+            particles = [];
+            const colors = ['#f44336', '#e91e63', '#9c27b0', '#673ab7', '#ffeb3b', '#ff9800'];
+            for (let i = 0; i < 150; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height - canvas.height,
+                    size: Math.random() * 8 + 4,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    velocity: { x: (Math.random() - 0.5) * 3, y: Math.random() * 3 + 2 },
+                    rotation: Math.random() * 360,
+                    rotationSpeed: Math.random() * 10 - 5
+                });
+            }
+            animateConfetti();
+        }
+
+        function animateConfetti() {
+            if (particles.length === 0) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach((p, i) => {
+                p.y += p.velocity.y; p.x += p.velocity.x; p.rotation += p.rotationSpeed;
+                ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rotation * Math.PI / 180);
+                ctx.fillStyle = p.color; ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size); ctx.restore();
+                if (p.y > canvas.height) particles[i].y = -20;
+            });
+            requestAnimationFrame(animateConfetti);
+        }
+
+        function startGame() {
+            particles = []; ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const diffKey = document.getElementById('diff').value;
+            current = SETTINGS[diffKey];
+            targets = IDIOMS.sort(() => Math.random() - 0.5).slice(0, current.count);
+            foundWords = []; foundCoords.clear(); first = null;
+            grid = Array(current.size).fill().map(() => Array(current.size).fill(null));
+            targets.forEach(word => {
+                let placed = false, tries = 0;
+                while (!placed && tries < 300) { if (placeWord(word)) placed = true; tries++; }
+            });
+            for (let y = 0; y < current.size; y++) {
+                for (let x = 0; x < current.size; x++) {
+                    if (!grid[y][x]) grid[y][x] = CHARS[Math.floor(Math.random() * CHARS.length)];
+                }
+            }
+            document.getElementById('gameArea').style.display = 'flex';
+            render();
+        }
+
+        function placeWord(word) {
+            const dirs = [[1,0],[0,1],[1,1],[1,-1],[0,-1],[-1,0]];
+            const d = dirs[Math.floor(Math.random() * dirs.length)];
+            const sx = Math.floor(Math.random() * current.size), sy = Math.floor(Math.random() * current.size);
+            for (let i = 0; i < word.length; i++) {
+                const nx = sx + i * d[0], ny = sy + i * d[1];
+                if (nx < 0 || nx >= current.size || ny < 0 || ny >= current.size) return false;
+                if (grid[ny][nx] && grid[ny][nx] !== word[i]) return false;
+            }
+            for (let i = 0; i < word.length; i++) grid[sy + i * d[1]][sx + i * d[0]] = word[i];
+            return true;
+        }
+
+        function render() {
+            const list = document.getElementById('targetList');
+            list.style.gridTemplateColumns = targets.length < 5 ? `repeat(${targets.length}, 1fr)` : `repeat(5, 1fr)`;
+            list.style.maxWidth = targets.length < 5 ? `${targets.length * 160}px` : `800px`;
+            list.innerHTML = targets.map(w => `<div id="t-${w}" class="target-item ${foundWords.includes(w) ? 'done' : ''}">${w}</div>`).join('');
+            
+            const gridEl = document.getElementById('gameGrid');
+            gridEl.style.gridTemplateColumns = `repeat(${current.size}, ${current.cell}px)`;
+            gridEl.innerHTML = '';
+            grid.forEach((row, y) => {
+                row.forEach((char, x) => {
+                    const cell = document.createElement('div');
+                    cell.id = `c-${x}-${y}`;
+                    const isFound = foundCoords.has(`${x},${y}`);
+                    const isSel = first && first.x === x && first.y === y;
+                    cell.className = `cell ${isFound ? 'found' : ''} ${isSel ? 'selected' : ''}`;
+                    cell.style.width = cell.style.height = cell.style.lineHeight = `${current.cell}px`;
+                    cell.style.fontSize = `${current.cell * 0.55}px`;
+                    cell.innerText = char;
+                    cell.onclick = () => handleSelect(x, y);
+                    gridEl.appendChild(cell);
+                });
+            });
+        }
+
+        function handleSelect(x, y) {
+            if (foundCoords.has(`${x},${y}`)) return;
+            if (!first) {
+                first = { x, y }; render();
+            } else {
+                const word = getWord(first, { x, y });
+                const rev = word ? word.split('').reverse().join('') : "";
+                let match = targets.includes(word) ? word : (targets.includes(rev) ? rev : null);
+                
+                if (match && !foundWords.includes(match)) {
+                    foundWords.push(match);
+                    triggerBlink(first, { x, y });
+                    triggerSuperShake(match); 
+                    markFound(first, { x, y });
+                    if (foundWords.length === targets.length) {
+                        setTimeout(() => { createConfetti(); alert("🎊 恭喜！你真是個成語小達人！"); }, 1100);
+                    }
+                }
+                first = null; render();
+            }
+        }
+
+        function triggerSuperShake(word) {
+            const targetEl = document.getElementById(`t-${word}`);
+            if (targetEl) {
+                targetEl.classList.add('shake-effect');
+                setTimeout(() => {
+                    targetEl.classList.remove('shake-effect');
+                    targetEl.classList.add('done');
+                }, 600);
+            }
+        }
+
+        function triggerBlink(p1, p2) {
+            const dx = p2.x - p1.x, dy = p2.y - p1.y, dist = Math.max(Math.abs(dx), Math.abs(dy));
+            const sx = dx === 0 ? 0 : dx / Math.abs(dx), sy = dy === 0 ? 0 : dy / Math.abs(dy);
+            for (let i = 0; i <= dist; i++) {
+                const el = document.getElementById(`c-${p1.x + i * sx}-${p1.y + i * sy}`);
+                if (el) { el.classList.add('blink-effect'); setTimeout(() => el.classList.remove('blink-effect'), 900); }
+            }
+        }
+
+        function getWord(p1, p2) {
+            const dx = p2.x - p1.x, dy = p2.y - p1.y, dist = Math.max(Math.abs(dx), Math.abs(dy));
+            if (dx !== 0 && dy !== 0 && Math.abs(dx) !== Math.abs(dy)) return null;
+            const sx = dx === 0 ? 0 : dx / Math.abs(dx), sy = dy === 0 ? 0 : dy / Math.abs(dy);
+            let s = "";
+            for (let i = 0; i <= dist; i++) s += grid[p1.y + i * sy][p1.x + i * sx];
+            return s;
+        }
+
+        function markFound(p1, p2) {
+            const dx = p2.x - p1.x, dy = p2.y - p1.y, dist = Math.max(Math.abs(dx), Math.abs(dy));
+            const sx = dx === 0 ? 0 : dx / Math.abs(dx), sy = dy === 0 ? 0 : dy / Math.abs(dy);
+            for (let i = 0; i <= dist; i++) foundCoords.add(`${p1.x + i * sx},${p1.y + i * sy}`);
+        }
+    </script>
+</body>
+</html>
