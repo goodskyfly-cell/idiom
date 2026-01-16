@@ -2,14 +2,12 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>成語找字挑戰賽</title>
+    <title>成語找字挑戰賽 - 簡潔版</title>
     <style>
         :root { --primary: #1b5e20; --found: #c8e6c9; --select: #ff9800; --bg: #f9fbe7; --win: #ffd700; --accent: #ff5722; --hint-bg: #fff9c4; }
         body { font-family: "Microsoft JhengHei", sans-serif; background: var(--bg); display: flex; flex-direction: column; align-items: center; min-height: 100vh; margin: 0; padding: 20px; overflow-x: hidden; }
         
-        #confettiCanvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 999; }
         .panel { background: white; padding: 15px 30px; border-radius: 50px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 30px; text-align: center; z-index: 10; }
-        
         #gameArea { display: none; flex-direction: column; align-items: center; width: 100%; gap: 15px; z-index: 10; }
 
         .instruction-tag { 
@@ -19,15 +17,9 @@
         }
         @keyframes float-hint { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
 
-        /* ✨ 優化：目標詞彙清單置中 */
         .target-list { 
-            display: flex;           /* 改用 flex 以利置中 */
-            flex-wrap: wrap; 
-            justify-content: center; /* 關鍵：水平均分置中 */
-            gap: 15px; 
-            width: 100%; 
-            max-width: 900px; 
-            margin: 0 auto 20px auto; 
+            display: flex; flex-wrap: wrap; justify-content: center; 
+            gap: 15px; width: 100%; max-width: 900px; margin: 0 auto 20px auto; 
         }
         .target-item { 
             display: flex; align-items: center; justify-content: center; 
@@ -65,7 +57,6 @@
 </head>
 <body>
 
-    <canvas id="confettiCanvas"></canvas>
     <h1>🔍 快樂找成語</h1>
     
     <div class="panel">
@@ -117,7 +108,6 @@
                 osc.start(startTime);
                 osc.stop(startTime + duration);
             }
-            // 第一組與第二組音調變化
             triggerNote(523.25, now); triggerNote(659.25, now + 0.12);
             triggerNote(659.25, now + 0.45); triggerNote(783.99, now + 0.57);
         }
@@ -159,7 +149,6 @@
         function render() {
             const list = document.getElementById('targetList');
             list.innerHTML = targets.map(w => `<div id="t-${w}" class="target-item ${foundWords.includes(w) ? 'done' : ''}">${w}</div>`).join('');
-            
             const gridEl = document.getElementById('gameGrid');
             gridEl.style.gridTemplateColumns = `repeat(${current.size}, ${current.cell}px)`;
             gridEl.innerHTML = '';
@@ -193,7 +182,8 @@
                     triggerSuperShake(match); 
                     markFound(first, { x, y });
                     if (foundWords.length === targets.length) {
-                        setTimeout(() => { createConfetti(); alert("🎊 太棒了！任務圓滿達成！"); }, 1100);
+                        // 移除碎紙花邏輯，僅保留延遲提示
+                        setTimeout(() => { alert("🎊 任務圓滿達成！您真厲害！"); }, 800);
                     }
                 }
                 first = null; render();
@@ -230,28 +220,6 @@
             const dx = p2.x - p1.x, dy = p2.y - p1.y, dist = Math.max(Math.abs(dx), Math.abs(dy));
             const sx = dx === 0 ? 0 : dx / Math.abs(dx), sy = dy === 0 ? 0 : dy / Math.abs(dy);
             for (let i = 0; i <= dist; i++) foundCoords.add(`${p1.x + i * sx},${p1.y + i * sy}`);
-        }
-
-        // 碎紙特效
-        const canvas = document.getElementById('confettiCanvas');
-        const ctx = canvas.getContext('2d');
-        let particles = [];
-        function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-        window.addEventListener('resize', resizeCanvas);
-        resizeCanvas();
-        function createConfetti() {
-            particles = [];
-            const colors = ['#f44336', '#e91e63', '#9c27b0', '#673ab7', '#ffeb3b', '#ff9800'];
-            for (let i = 0; i < 150; i++) {
-                particles.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height - canvas.height, size: Math.random() * 8 + 4, color: colors[Math.floor(Math.random() * colors.length)], velocity: { x: (Math.random() - 0.5) * 3, y: Math.random() * 3 + 2 }, rotation: Math.random() * 360, rotationSpeed: Math.random() * 10 - 5 });
-            }
-            animateConfetti();
-        }
-        function animateConfetti() {
-            if (particles.length === 0) return;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            particles.forEach((p, i) => { p.y += p.velocity.y; p.x += p.velocity.x; p.rotation += p.rotationSpeed; ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rotation * Math.PI / 180); ctx.fillStyle = p.color; ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size); ctx.restore(); if (p.y > canvas.height) particles[i].y = -20; });
-            requestAnimationFrame(animateConfetti);
         }
     </script>
 </body>
