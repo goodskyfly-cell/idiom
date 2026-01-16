@@ -2,24 +2,44 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>成語找字挑戰賽 - 全感官慶祝版</title>
+    <title>成語找字挑戰賽</title>
     <style>
-        :root { --primary: #1b5e20; --found: #c8e6c9; --select: #ff9800; --bg: #f9fbe7; --win: #ffd700; --accent: #ff5722; }
+        :root { --primary: #1b5e20; --found: #c8e6c9; --select: #ff9800; --bg: #f9fbe7; --win: #ffd700; --accent: #ff5722; --hint-bg: #fff9c4; }
         body { font-family: "Microsoft JhengHei", sans-serif; background: var(--bg); display: flex; flex-direction: column; align-items: center; min-height: 100vh; margin: 0; padding: 20px; overflow-x: hidden; }
         
         #confettiCanvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 999; }
         .panel { background: white; padding: 15px 30px; border-radius: 50px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 30px; text-align: center; z-index: 10; }
-        #gameArea { display: none; flex-direction: column; align-items: center; width: 100%; gap: 20px; z-index: 10; }
+        
+        #gameArea { display: none; flex-direction: column; align-items: center; width: 100%; gap: 15px; z-index: 10; }
 
-        .target-list { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; width: 100%; max-width: 800px; justify-content: center; margin-bottom: 10px; }
-        .target-item { display: flex; align-items: center; justify-content: center; padding: 12px 5px; background: #ffffff; border: 3px solid #81c784; border-radius: 15px; font-size: 1.2rem; font-weight: 900; color: #2e7d32; box-shadow: 0 4px 0px #c8e6c9; transition: all 0.2s; }
+        .instruction-tag { 
+            background: var(--hint-bg); color: #af6000; padding: 10px 25px; border-radius: 25px; 
+            font-weight: bold; font-size: 1.1rem; border: 2px dashed #fbc02d;
+            animation: float-hint 3s infinite ease-in-out; margin-bottom: 10px;
+        }
+        @keyframes float-hint { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
 
-        /* 超劇烈震動動畫 */
+        /* ✨ 優化：目標詞彙清單置中 */
+        .target-list { 
+            display: flex;           /* 改用 flex 以利置中 */
+            flex-wrap: wrap; 
+            justify-content: center; /* 關鍵：水平均分置中 */
+            gap: 15px; 
+            width: 100%; 
+            max-width: 900px; 
+            margin: 0 auto 20px auto; 
+        }
+        .target-item { 
+            display: flex; align-items: center; justify-content: center; 
+            padding: 12px 20px; background: #ffffff; border: 3px solid #81c784; 
+            border-radius: 15px; font-size: 1.2rem; font-weight: 900; color: #2e7d32; 
+            box-shadow: 0 4px 0px #c8e6c9; min-width: 120px; 
+        }
+
         @keyframes super-shake {
             0% { transform: translate(0, 0) rotate(0deg) scale(1); }
             10% { transform: translate(-8px, -4px) rotate(-5deg) scale(1.3); background-color: var(--win); }
             20% { transform: translate(8px, 4px) rotate(5deg) scale(1.3); background-color: var(--accent); color: white; }
-            90% { transform: translate(-4px, 2px) rotate(-1deg) scale(1.1); }
             100% { transform: translate(0, 0) rotate(0deg) scale(1); }
         }
         .shake-effect { animation: super-shake 0.5s ease-in-out both; z-index: 100; border-color: var(--accent) !important; box-shadow: 0 0 30px rgba(255, 87, 34, 0.5); }
@@ -32,9 +52,9 @@
         .cell.found { background: var(--found) !important; color: #1b5e20; cursor: default; }
 
         @keyframes blink-strong {
-            0% { background-color: #fff; transform: scale(1); filter: brightness(1); }
-            33% { background-color: var(--win); transform: scale(1.3); filter: brightness(1.5); box-shadow: 0 0 20px var(--win); }
-            100% { background-color: var(--found); transform: scale(1); filter: brightness(1); }
+            0% { background-color: #fff; transform: scale(1); }
+            33% { background-color: var(--win); transform: scale(1.3); box-shadow: 0 0 20px var(--win); }
+            100% { background-color: var(--found); transform: scale(1); }
         }
         .blink-effect { animation: blink-strong 0.3s ease-in-out 3; z-index: 10; }
 
@@ -49,7 +69,7 @@
     <h1>🔍 快樂找成語</h1>
     
     <div class="panel">
-        難度：<select id="diff">
+        難度選擇：<select id="diff">
             <option value="幼兒" selected>5x5 幼兒版 (2個詞)</option>
             <option value="低年級">8x8 低年級版 (5個詞)</option>
             <option value="標準">10x10 標準版 (10個詞)</option>
@@ -59,6 +79,7 @@
     </div>
 
     <div id="gameArea">
+        <div class="instruction-tag">💡 玩法提示：請點選目標詞彙的「第一個字」與「最後一個字」</div>
         <div class="target-list" id="targetList"></div>
         <div class="grid-box"><div class="grid" id="gameGrid"></div></div>
     </div>
@@ -75,71 +96,35 @@
 
         let current = {}, grid = [], targets = [], foundWords = [], foundCoords = new Set(), first = null;
 
-        // --- 音效合成引擎 ---
+        // --- 音效系統 ---
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        const audioCtx = new AudioCtx();
+        let audioCtx;
 
-        function playDingDong() {
+        function playDoubleDingDong() {
+            if (!audioCtx) audioCtx = new AudioCtx();
             if (audioCtx.state === 'suspended') audioCtx.resume();
-            
-            const playTone = (freq, time, duration) => {
+            const now = audioCtx.currentTime;
+            function triggerNote(freq, startTime, duration = 0.3) {
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
                 osc.type = 'sine';
-                osc.frequency.setValueAtTime(freq, time);
-                gain.gain.setValueAtTime(0.3, time);
-                gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
+                osc.frequency.setValueAtTime(freq, startTime);
+                gain.gain.setValueAtTime(0, startTime);
+                gain.gain.linearRampToValueAtTime(0.3, startTime + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
                 osc.connect(gain);
                 gain.connect(audioCtx.destination);
-                osc.start(time);
-                osc.stop(time + duration);
-            };
-
-            const now = audioCtx.currentTime;
-            playTone(523.25, now, 0.3); // 叮 (C5)
-            playTone(659.25, now + 0.15, 0.4); // 咚 (E5)
-        }
-        // ------------------
-
-        // 碎紙特效 Canvas 邏輯 (略，同前版)
-        const canvas = document.getElementById('confettiCanvas');
-        const ctx = canvas.getContext('2d');
-        let particles = [];
-        function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-        window.addEventListener('resize', resizeCanvas);
-        resizeCanvas();
-
-        function createConfetti() {
-            particles = [];
-            const colors = ['#f44336', '#e91e63', '#9c27b0', '#673ab7', '#ffeb3b', '#ff9800'];
-            for (let i = 0; i < 150; i++) {
-                particles.push({
-                    x: Math.random() * canvas.width,
-                    y: Math.random() * canvas.height - canvas.height,
-                    size: Math.random() * 8 + 4,
-                    color: colors[Math.floor(Math.random() * colors.length)],
-                    velocity: { x: (Math.random() - 0.5) * 3, y: Math.random() * 3 + 2 },
-                    rotation: Math.random() * 360,
-                    rotationSpeed: Math.random() * 10 - 5
-                });
+                osc.start(startTime);
+                osc.stop(startTime + duration);
             }
-            animateConfetti();
+            // 第一組與第二組音調變化
+            triggerNote(523.25, now); triggerNote(659.25, now + 0.12);
+            triggerNote(659.25, now + 0.45); triggerNote(783.99, now + 0.57);
         }
 
-        function animateConfetti() {
-            if (particles.length === 0) return;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            particles.forEach((p, i) => {
-                p.y += p.velocity.y; p.x += p.velocity.x; p.rotation += p.rotationSpeed;
-                ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rotation * Math.PI / 180);
-                ctx.fillStyle = p.color; ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size); ctx.restore();
-                if (p.y > canvas.height) particles[i].y = -20;
-            });
-            requestAnimationFrame(animateConfetti);
-        }
-
+        // --- 遊戲邏輯 ---
         function startGame() {
-            particles = []; ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (!audioCtx) audioCtx = new AudioCtx();
             const diffKey = document.getElementById('diff').value;
             current = SETTINGS[diffKey];
             targets = IDIOMS.sort(() => Math.random() - 0.5).slice(0, current.count);
@@ -173,7 +158,6 @@
 
         function render() {
             const list = document.getElementById('targetList');
-            list.style.gridTemplateColumns = targets.length < 5 ? `repeat(${targets.length}, 1fr)` : `repeat(5, 1fr)`;
             list.innerHTML = targets.map(w => `<div id="t-${w}" class="target-item ${foundWords.includes(w) ? 'done' : ''}">${w}</div>`).join('');
             
             const gridEl = document.getElementById('gameGrid');
@@ -184,8 +168,7 @@
                     const cell = document.createElement('div');
                     cell.id = `c-${x}-${y}`;
                     const isFound = foundCoords.has(`${x},${y}`);
-                    const isSel = first && first.x === x && first.y === y;
-                    cell.className = `cell ${isFound ? 'found' : ''} ${isSel ? 'selected' : ''}`;
+                    cell.className = `cell ${isFound ? 'found' : ''} ${first && first.x === x && first.y === y ? 'selected' : ''}`;
                     cell.style.width = cell.style.height = cell.style.lineHeight = `${current.cell}px`;
                     cell.style.fontSize = `${current.cell * 0.55}px`;
                     cell.innerText = char;
@@ -203,15 +186,11 @@
                 const word = getWord(first, { x, y });
                 const rev = word ? word.split('').reverse().join('') : "";
                 let match = targets.includes(word) ? word : (targets.includes(rev) ? rev : null);
-                
                 if (match && !foundWords.includes(match)) {
                     foundWords.push(match);
-                    
-                    // 同步觸發：音效 + 閃爍 + 震動
-                    playDingDong(); 
+                    playDoubleDingDong();
                     triggerBlink(first, { x, y });
                     triggerSuperShake(match); 
-                    
                     markFound(first, { x, y });
                     if (foundWords.length === targets.length) {
                         setTimeout(() => { createConfetti(); alert("🎊 太棒了！任務圓滿達成！"); }, 1100);
@@ -225,10 +204,7 @@
             const targetEl = document.getElementById(`t-${word}`);
             if (targetEl) {
                 targetEl.classList.add('shake-effect');
-                setTimeout(() => {
-                    targetEl.classList.remove('shake-effect');
-                    targetEl.classList.add('done');
-                }, 600);
+                setTimeout(() => { targetEl.classList.remove('shake-effect'); targetEl.classList.add('done'); }, 600);
             }
         }
 
@@ -254,6 +230,28 @@
             const dx = p2.x - p1.x, dy = p2.y - p1.y, dist = Math.max(Math.abs(dx), Math.abs(dy));
             const sx = dx === 0 ? 0 : dx / Math.abs(dx), sy = dy === 0 ? 0 : dy / Math.abs(dy);
             for (let i = 0; i <= dist; i++) foundCoords.add(`${p1.x + i * sx},${p1.y + i * sy}`);
+        }
+
+        // 碎紙特效
+        const canvas = document.getElementById('confettiCanvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+        function createConfetti() {
+            particles = [];
+            const colors = ['#f44336', '#e91e63', '#9c27b0', '#673ab7', '#ffeb3b', '#ff9800'];
+            for (let i = 0; i < 150; i++) {
+                particles.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height - canvas.height, size: Math.random() * 8 + 4, color: colors[Math.floor(Math.random() * colors.length)], velocity: { x: (Math.random() - 0.5) * 3, y: Math.random() * 3 + 2 }, rotation: Math.random() * 360, rotationSpeed: Math.random() * 10 - 5 });
+            }
+            animateConfetti();
+        }
+        function animateConfetti() {
+            if (particles.length === 0) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach((p, i) => { p.y += p.velocity.y; p.x += p.velocity.x; p.rotation += p.rotationSpeed; ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rotation * Math.PI / 180); ctx.fillStyle = p.color; ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size); ctx.restore(); if (p.y > canvas.height) particles[i].y = -20; });
+            requestAnimationFrame(animateConfetti);
         }
     </script>
 </body>
