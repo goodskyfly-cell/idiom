@@ -2,12 +2,16 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>成語找字挑戰賽 - 簡潔版</title>
+    <title>成語找字挑戰賽 - 計時挑戰版</title>
     <style>
         :root { --primary: #1b5e20; --found: #c8e6c9; --select: #ff9800; --bg: #f9fbe7; --win: #ffd700; --accent: #ff5722; --hint-bg: #fff9c4; }
         body { font-family: "Microsoft JhengHei", sans-serif; background: var(--bg); display: flex; flex-direction: column; align-items: center; min-height: 100vh; margin: 0; padding: 20px; overflow-x: hidden; }
         
-        .panel { background: white; padding: 15px 30px; border-radius: 50px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 30px; text-align: center; z-index: 10; }
+        .panel { background: white; padding: 15px 30px; border-radius: 50px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 30px; text-align: center; z-index: 10; display: flex; align-items: center; gap: 15px; }
+        
+        /* 🕒 計時器樣式 */
+        .timer-box { background: #333; color: #00ff00; padding: 5px 15px; border-radius: 10px; font-family: 'Courier New', monospace; font-size: 1.2rem; font-weight: bold; border: 2px solid #555; min-width: 80px; }
+
         #gameArea { display: none; flex-direction: column; align-items: center; width: 100%; gap: 15px; z-index: 10; }
 
         .instruction-tag { 
@@ -17,16 +21,8 @@
         }
         @keyframes float-hint { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
 
-        .target-list { 
-            display: flex; flex-wrap: wrap; justify-content: center; 
-            gap: 15px; width: 100%; max-width: 900px; margin: 0 auto 20px auto; 
-        }
-        .target-item { 
-            display: flex; align-items: center; justify-content: center; 
-            padding: 12px 20px; background: #ffffff; border: 3px solid #81c784; 
-            border-radius: 15px; font-size: 1.2rem; font-weight: 900; color: #2e7d32; 
-            box-shadow: 0 4px 0px #c8e6c9; min-width: 120px; 
-        }
+        .target-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; width: 100%; max-width: 900px; margin: 0 auto 20px auto; }
+        .target-item { display: flex; align-items: center; justify-content: center; padding: 12px 20px; background: #ffffff; border: 3px solid #81c784; border-radius: 15px; font-size: 1.2rem; font-weight: 900; color: #2e7d32; box-shadow: 0 4px 0px #c8e6c9; min-width: 120px; }
 
         @keyframes super-shake {
             0% { transform: translate(0, 0) rotate(0deg) scale(1); }
@@ -50,7 +46,7 @@
         }
         .blink-effect { animation: blink-strong 0.3s ease-in-out 3; z-index: 10; }
 
-        select, button { padding: 12px 20px; font-size: 16px; border-radius: 10px; border: 1px solid #ddd; margin: 5px; cursor: pointer; }
+        select, button { padding: 12px 20px; font-size: 16px; border-radius: 10px; border: 1px solid #ddd; cursor: pointer; }
         button { background: var(--primary); color: white; border: none; font-weight: bold; }
         h1 { color: #2e7d32; margin-top: 0; }
     </style>
@@ -60,13 +56,15 @@
     <h1>🔍 快樂找成語</h1>
     
     <div class="panel">
-        難度選擇：<select id="diff">
+        難度選擇：
+        <select id="diff">
             <option value="幼兒" selected>5x5 幼兒版 (2個詞)</option>
             <option value="低年級">8x8 低年級版 (5個詞)</option>
             <option value="標準">10x10 標準版 (10個詞)</option>
             <option value="達人">15x15 達人版 (15個詞)</option>
         </select>
         <button onclick="startGame()">建立遊戲</button>
+        <div class="timer-box" id="timerDisplay">00:00</div>
     </div>
 
     <div id="gameArea">
@@ -86,6 +84,7 @@
         };
 
         let current = {}, grid = [], targets = [], foundWords = [], foundCoords = new Set(), first = null;
+        let startTime, timerInterval;
 
         // --- 音效系統 ---
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -103,22 +102,35 @@
                 gain.gain.setValueAtTime(0, startTime);
                 gain.gain.linearRampToValueAtTime(0.3, startTime + 0.02);
                 gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.start(startTime);
-                osc.stop(startTime + duration);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(startTime); osc.stop(startTime + duration);
             }
             triggerNote(523.25, now); triggerNote(659.25, now + 0.12);
             triggerNote(659.25, now + 0.45); triggerNote(783.99, now + 0.57);
         }
 
-        // --- 遊戲邏輯 ---
+        // --- 計時器邏輯 ---
+        function updateTimer() {
+            const now = new Date();
+            const diff = Math.floor((now - startTime) / 1000);
+            const m = Math.floor(diff / 60).toString().padStart(2, '0');
+            const s = (diff % 60).toString().padStart(2, '0');
+            document.getElementById('timerDisplay').innerText = `${m}:${s}`;
+        }
+
         function startGame() {
             if (!audioCtx) audioCtx = new AudioCtx();
             const diffKey = document.getElementById('diff').value;
             current = SETTINGS[diffKey];
             targets = IDIOMS.sort(() => Math.random() - 0.5).slice(0, current.count);
             foundWords = []; foundCoords.clear(); first = null;
+            
+            // 重設與啟動計時器
+            clearInterval(timerInterval);
+            startTime = new Date();
+            timerInterval = setInterval(updateTimer, 1000);
+            document.getElementById('timerDisplay').innerText = "00:00";
+
             grid = Array(current.size).fill().map(() => Array(current.size).fill(null));
             targets.forEach(word => {
                 let placed = false, tries = 0;
@@ -156,8 +168,7 @@
                 row.forEach((char, x) => {
                     const cell = document.createElement('div');
                     cell.id = `c-${x}-${y}`;
-                    const isFound = foundCoords.has(`${x},${y}`);
-                    cell.className = `cell ${isFound ? 'found' : ''} ${first && first.x === x && first.y === y ? 'selected' : ''}`;
+                    cell.className = `cell ${foundCoords.has(`${x},${y}`) ? 'found' : ''} ${first && first.x === x && first.y === y ? 'selected' : ''}`;
                     cell.style.width = cell.style.height = cell.style.lineHeight = `${current.cell}px`;
                     cell.style.fontSize = `${current.cell * 0.55}px`;
                     cell.innerText = char;
@@ -182,8 +193,9 @@
                     triggerSuperShake(match); 
                     markFound(first, { x, y });
                     if (foundWords.length === targets.length) {
-                        // 移除碎紙花邏輯，僅保留延遲提示
-                        setTimeout(() => { alert("🎊 任務圓滿達成！您真厲害！"); }, 800);
+                        clearInterval(timerInterval); // 停止計時
+                        const finalTime = document.getElementById('timerDisplay').innerText;
+                        setTimeout(() => { alert(`🎊 任務完成！總共花費時間：${finalTime}`); }, 800);
                     }
                 }
                 first = null; render();
