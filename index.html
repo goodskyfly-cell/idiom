@@ -2,143 +2,220 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>成語找字挑戰賽 - 計時挑戰版</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>快樂找找看 - 完整優化版</title>
     <style>
-        :root { --primary: #1b5e20; --found: #c8e6c9; --select: #ff9800; --bg: #f9fbe7; --win: #ffd700; --accent: #ff5722; --hint-bg: #fff9c4; }
-        body { font-family: "Microsoft JhengHei", sans-serif; background: var(--bg); display: flex; flex-direction: column; align-items: center; min-height: 100vh; margin: 0; padding: 20px; overflow-x: hidden; }
-        
-        .panel { background: white; padding: 15px 30px; border-radius: 50px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 30px; text-align: center; z-index: 10; display: flex; align-items: center; gap: 15px; }
-        
-        /* 🕒 計時器樣式 */
-        .timer-box { background: #333; color: #00ff00; padding: 5px 15px; border-radius: 10px; font-family: 'Courier New', monospace; font-size: 1.2rem; font-weight: bold; border: 2px solid #555; min-width: 80px; }
-
-        #gameArea { display: none; flex-direction: column; align-items: center; width: 100%; gap: 15px; z-index: 10; }
-
-        .instruction-tag { 
-            background: var(--hint-bg); color: #af6000; padding: 10px 25px; border-radius: 25px; 
-            font-weight: bold; font-size: 1.1rem; border: 2px dashed #fbc02d;
-            animation: float-hint 3s infinite ease-in-out; margin-bottom: 10px;
+        :root { 
+            --primary: #1b5e20; 
+            --found: #c8e6c9; 
+            --select: #ff9800; 
+            --bg: #f9fbe7; 
+            --hint-bg: #fff9c4; 
+            --border-color: #81c784;
         }
-        @keyframes float-hint { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
-
-        .target-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; width: 100%; max-width: 900px; margin: 0 auto 20px auto; }
-        .target-item { display: flex; align-items: center; justify-content: center; padding: 12px 20px; background: #ffffff; border: 3px solid #81c784; border-radius: 15px; font-size: 1.2rem; font-weight: 900; color: #2e7d32; box-shadow: 0 4px 0px #c8e6c9; min-width: 120px; }
-
-        @keyframes super-shake {
-            0% { transform: translate(0, 0) rotate(0deg) scale(1); }
-            10% { transform: translate(-8px, -4px) rotate(-5deg) scale(1.3); background-color: var(--win); }
-            20% { transform: translate(8px, 4px) rotate(5deg) scale(1.3); background-color: var(--accent); color: white; }
-            100% { transform: translate(0, 0) rotate(0deg) scale(1); }
+        
+        body { 
+            font-family: "Microsoft JhengHei", sans-serif; 
+            background: var(--bg); 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            min-height: 100vh; 
+            margin: 0; 
+            padding: 20px; 
         }
-        .shake-effect { animation: super-shake 0.5s ease-in-out both; z-index: 100; border-color: var(--accent) !important; box-shadow: 0 0 30px rgba(255, 87, 34, 0.5); }
-        .target-item.done { background: #e0e0e0; color: #9e9e9e; text-decoration: line-through; border-color: #bdbdbd; box-shadow: none; transform: translateY(2px); transition: 0.5s; }
 
-        .grid-box { background: #a5d6a7; padding: 15px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
-        .grid { display: grid; gap: 6px; user-select: none; }
-        .cell { background: white; text-align: center; font-weight: bold; cursor: pointer; border-radius: 8px; transition: 0.2s; color: #333; }
-        .cell.selected { background: var(--select) !important; color: white; transform: scale(1.1); z-index: 5; }
+        /* 頂部控制面板 */
+        .panel { 
+            background: white; 
+            padding: 15px 30px; 
+            border-radius: 50px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
+            margin-bottom: 20px; 
+            display: flex; 
+            align-items: center; 
+            gap: 15px; 
+        }
+        
+        .timer-box { 
+            background: #333; 
+            color: #00ff00; 
+            padding: 5px 15px; 
+            border-radius: 10px; 
+            font-family: monospace; 
+            font-size: 1.2rem; 
+        }
+
+        #gameArea { 
+            display: none; 
+            flex-direction: column; 
+            align-items: center; 
+            width: 100%; 
+            max-width: 800px;
+            gap: 15px; 
+        }
+
+        /* 1. 玩法說明 (位於最上方) */
+        .instruction-banner {
+            background-color: var(--hint-bg);
+            border: 2px dashed #fbc02d;
+            border-radius: 50px;
+            padding: 12px 30px;
+            color: #af6000;
+            font-size: 1.1rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        /* 2. 目標詞彙清單 (5個一行) */
+        .target-list { 
+            display: flex; 
+            flex-wrap: wrap; 
+            justify-content: center; 
+            gap: 12px; 
+            width: 100%;
+            margin-bottom: 10px; 
+        }
+
+        .target-item { 
+            box-sizing: border-box;
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            background: white; 
+            border: 3px solid var(--border-color); 
+            border-radius: 12px; 
+            font-weight: bold; 
+            color: #2e7d32; 
+            box-shadow: 0 4px 0px #c8e6c9; 
+            transition: 0.3s;
+            /* 預設 5 個一行的寬度計算 */
+            flex: 0 0 calc(20% - 12px); 
+            min-height: 50px;
+        }
+
+        .target-item.done { 
+            background: #e0e0e0; 
+            border-color: #bdbdbd; 
+            opacity: 0.5; 
+            text-decoration: line-through; 
+            box-shadow: none; 
+            transform: translateY(4px);
+        }
+
+        /* 3. 遊戲網格 */
+        .grid-box { 
+            background: #a5d6a7; 
+            padding: 15px; 
+            border-radius: 15px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2); 
+        }
+        
+        .grid { 
+            display: grid; 
+            gap: 8px; 
+            user-select: none; 
+        }
+        
+        .cell { 
+            background: white; 
+            border-radius: 8px; 
+            transition: 0.2s; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            cursor: pointer; 
+            border: 1px solid #eee; 
+            font-weight: bold;
+        }
+        
         .cell.found { background: var(--found) !important; color: #1b5e20; cursor: default; }
+        .cell.selected { background: var(--select) !important; color: white; transform: scale(0.95); }
 
-        @keyframes blink-strong {
-            0% { background-color: #fff; transform: scale(1); }
-            33% { background-color: var(--win); transform: scale(1.3); box-shadow: 0 0 20px var(--win); }
-            100% { background-color: var(--found); transform: scale(1); }
-        }
-        .blink-effect { animation: blink-strong 0.3s ease-in-out 3; z-index: 10; }
-
-        select, button { padding: 12px 20px; font-size: 16px; border-radius: 10px; border: 1px solid #ddd; cursor: pointer; }
-        button { background: var(--primary); color: white; border: none; font-weight: bold; }
-        h1 { color: #2e7d32; margin-top: 0; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        select, button { padding: 10px 15px; border-radius: 8px; border: 1px solid #ddd; cursor: pointer; font-weight: bold; font-size: 1rem; }
+        button { background: var(--primary); color: white; border: none; transition: 0.2s; }
+        button:hover { background: #2e7d32; transform: scale(1.05); }
     </style>
 </head>
 <body>
 
-    <h1>🔍 快樂找成語</h1>
+    <h1 style="color: #2e7d32; margin-bottom: 10px;">🔍 快樂找找看</h1>
     
     <div class="panel">
-        難度選擇：
         <select id="diff">
-            <option value="幼兒" selected>5x5 幼兒版 (2個詞)</option>
-            <option value="低年級">8x8 低年級版 (5個詞)</option>
-            <option value="標準">10x10 標準版 (10個詞)</option>
-            <option value="達人">15x15 達人版 (15個詞)</option>
+            <option value="幼兒">5x5 幼兒版 (5個單圖)</option>
+            <option value="低年級">5x5 低年級版 (2個成語)</option>
+            <option value="中年級" selected>8x8 中年級版 (5個成語)</option>
+            <option value="標準">10x10 標準版 (10個成語)</option>
+            <option value="達人">15x15 達人版 (15個成語)</option>
         </select>
-        <button onclick="startGame()">建立遊戲</button>
+        <button onclick="startGame()">建立新遊戲</button>
         <div class="timer-box" id="timerDisplay">00:00</div>
     </div>
 
     <div id="gameArea">
-        <div class="instruction-tag">💡 玩法提示：請點選目標詞彙的「第一個字」與「最後一個字」</div>
+        <div class="instruction-banner" id="instructionText"></div>
+
         <div class="target-list" id="targetList"></div>
-        <div class="grid-box"><div class="grid" id="gameGrid"></div></div>
+        
+        <div class="grid-box">
+            <div class="grid" id="gameGrid"></div>
+        </div>
     </div>
 
     <script>
         const IDIOMS = ["一毛不拔","似是而非","十全十美","一心一意","三心二意","四平八穩","五光十色","六神無主","七手八腳","八面玲瓏","九牛一毛","朝氣蓬勃","鴉雀無聲","一目十行","迫不及待","半途而廢","大公無私","守株待兔","畫蛇添足","掩耳盜鈴","亡羊補牢","拔苗助長","名列前茅","名正言順","言行一致","知行合一","如虎添翼","龍馬精神","生龍活虎","井底之蛙","對牛彈琴","望梅止渴","聞雞起舞","精益求精","鍥而不捨","堅持不懈","全力以赴","前程似錦","金玉良言","出口成章","妙語如珠","胸有成竹","循序漸進","廢寢忘食","懸樑刺股","鑿壁偷光","博學多才","溫故知新","不恥下問","舉一反三"];
+        const EMOJI_POOL = ["🍎","🍌","🍇","🍊","🍓","🍍","🥝","🍒","🐶","🐱","🐰","🐹","🦊","🐻","🐼","🚗","🚀","🛸","🚢","🚲","⭐","🌈","☀️","🍀","💎","🍔","🍕","🍟","🍦","🍩"];
         const CHARS = "的一是在不了有和人這中大來上個國我到說們為子和你不後出道也得裡下自得之時後過而家多";
+
         const SETTINGS = {
-            "幼兒": { size: 5, count: 2, cell: 75 },
-            "低年級": { size: 8, count: 5, cell: 55 },
-            "標準": { size: 10, count: 10, cell: 45 },
-            "達人": { size: 15, count: 15, cell: 38 }
+            "幼兒": { size: 5, count: 5, cell: 80, type: 'emoji' },
+            "低年級": { size: 5, count: 2, cell: 80, type: 'text' },
+            "中年級": { size: 8, count: 5, cell: 60, type: 'text' },
+            "標準": { size: 10, count: 10, cell: 50, type: 'text' },
+            "達人": { size: 15, count: 15, cell: 40, type: 'text' }
         };
 
         let current = {}, grid = [], targets = [], foundWords = [], foundCoords = new Set(), first = null;
         let startTime, timerInterval;
 
-        // --- 音效系統 ---
-        const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        let audioCtx;
-
-        function playDoubleDingDong() {
-            if (!audioCtx) audioCtx = new AudioCtx();
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            const now = audioCtx.currentTime;
-            function triggerNote(freq, startTime, duration = 0.3) {
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(freq, startTime);
-                gain.gain.setValueAtTime(0, startTime);
-                gain.gain.linearRampToValueAtTime(0.3, startTime + 0.02);
-                gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
-                osc.connect(gain); gain.connect(audioCtx.destination);
-                osc.start(startTime); osc.stop(startTime + duration);
-            }
-            triggerNote(523.25, now); triggerNote(659.25, now + 0.12);
-            triggerNote(659.25, now + 0.45); triggerNote(783.99, now + 0.57);
-        }
-
-        // --- 計時器邏輯 ---
-        function updateTimer() {
-            const now = new Date();
-            const diff = Math.floor((now - startTime) / 1000);
-            const m = Math.floor(diff / 60).toString().padStart(2, '0');
-            const s = (diff % 60).toString().padStart(2, '0');
-            document.getElementById('timerDisplay').innerText = `${m}:${s}`;
-        }
-
         function startGame() {
-            if (!audioCtx) audioCtx = new AudioCtx();
             const diffKey = document.getElementById('diff').value;
             current = SETTINGS[diffKey];
-            targets = IDIOMS.sort(() => Math.random() - 0.5).slice(0, current.count);
-            foundWords = []; foundCoords.clear(); first = null;
             
-            // 重設與啟動計時器
+            // 更新提示
+            const instrEl = document.getElementById('instructionText');
+            instrEl.innerHTML = current.type === 'emoji' ? 
+                `💡 玩法提示：請點選目標圖案` : 
+                `💡 玩法提示：點選成語的「第一個字」與「最後一個字」`;
+
+            let pool = current.type === 'emoji' ? [...EMOJI_POOL] : [...IDIOMS];
+            pool.sort(() => Math.random() - 0.5);
+            targets = pool.slice(0, current.count);
+            
+            foundWords = []; foundCoords.clear(); first = null;
             clearInterval(timerInterval);
             startTime = new Date();
             timerInterval = setInterval(updateTimer, 1000);
-            document.getElementById('timerDisplay').innerText = "00:00";
 
             grid = Array(current.size).fill().map(() => Array(current.size).fill(null));
             targets.forEach(word => {
-                let placed = false, tries = 0;
-                while (!placed && tries < 300) { if (placeWord(word)) placed = true; tries++; }
+                let placed = false;
+                while (!placed) { if (placeWord(word)) placed = true; }
             });
+
+            const currentTargetsSet = new Set(targets);
+            const rawFiller = current.type === 'emoji' ? EMOJI_POOL : Array.from(CHARS);
+            const safeFiller = rawFiller.filter(item => !currentTargetsSet.has(item));
+
             for (let y = 0; y < current.size; y++) {
                 for (let x = 0; x < current.size; x++) {
-                    if (!grid[y][x]) grid[y][x] = CHARS[Math.floor(Math.random() * CHARS.length)];
+                    if (!grid[y][x]) grid[y][x] = safeFiller[Math.floor(Math.random() * safeFiller.length)];
                 }
             }
             document.getElementById('gameArea').style.display = 'flex';
@@ -146,30 +223,56 @@
         }
 
         function placeWord(word) {
-            const dirs = [[1,0],[0,1],[1,1],[1,-1],[0,-1],[-1,0]];
+            const chars = Array.from(word);
+            const dirs = [[1,0],[0,1],[1,1],[1,-1],[0,-1],[-1,0],[-1,-1],[-1,1]];
             const d = dirs[Math.floor(Math.random() * dirs.length)];
             const sx = Math.floor(Math.random() * current.size), sy = Math.floor(Math.random() * current.size);
-            for (let i = 0; i < word.length; i++) {
+            for (let i = 0; i < chars.length; i++) {
                 const nx = sx + i * d[0], ny = sy + i * d[1];
                 if (nx < 0 || nx >= current.size || ny < 0 || ny >= current.size) return false;
-                if (grid[ny][nx] && grid[ny][nx] !== word[i]) return false;
+                if (grid[ny][nx] && grid[ny][nx] !== chars[i]) return false;
             }
-            for (let i = 0; i < word.length; i++) grid[sy + i * d[1]][sx + i * d[0]] = word[i];
+            for (let i = 0; i < chars.length; i++) grid[sy + i * d[1]][sx + i * d[0]] = chars[i];
             return true;
+        }
+
+        function updateTimer() {
+            const diff = Math.floor((new Date() - startTime) / 1000);
+            document.getElementById('timerDisplay').innerText = 
+                `${Math.floor(diff/60).toString().padStart(2,'0')}:${(diff%60).toString().padStart(2,'0')}`;
         }
 
         function render() {
             const list = document.getElementById('targetList');
-            list.innerHTML = targets.map(w => `<div id="t-${w}" class="target-item ${foundWords.includes(w) ? 'done' : ''}">${w}</div>`).join('');
+            list.innerHTML = '';
+            
+            targets.forEach(w => {
+                const item = document.createElement('div');
+                item.id = `t-${w}`;
+                item.className = `target-item ${foundWords.includes(w) ? 'done' : ''}`;
+                item.innerText = w;
+
+                if (current.type === 'emoji') {
+                    // 幼兒版：寬高完全匹配格子大小
+                    item.style.width = `${current.cell}px`;
+                    item.style.height = `${current.cell}px`;
+                    item.style.flex = "0 0 auto"; // 取消 5個一行的 flex 縮放
+                    item.style.fontSize = `${current.cell * 0.6}px`;
+                } else {
+                    // 文字版：採用 CSS 規定的 5 個一行佈局
+                    item.style.fontSize = '1.1rem';
+                }
+                list.appendChild(item);
+            });
+
             const gridEl = document.getElementById('gameGrid');
             gridEl.style.gridTemplateColumns = `repeat(${current.size}, ${current.cell}px)`;
             gridEl.innerHTML = '';
             grid.forEach((row, y) => {
                 row.forEach((char, x) => {
                     const cell = document.createElement('div');
-                    cell.id = `c-${x}-${y}`;
                     cell.className = `cell ${foundCoords.has(`${x},${y}`) ? 'found' : ''} ${first && first.x === x && first.y === y ? 'selected' : ''}`;
-                    cell.style.width = cell.style.height = cell.style.lineHeight = `${current.cell}px`;
+                    cell.style.width = cell.style.height = `${current.cell}px`;
                     cell.style.fontSize = `${current.cell * 0.55}px`;
                     cell.innerText = char;
                     cell.onclick = () => handleSelect(x, y);
@@ -180,42 +283,34 @@
 
         function handleSelect(x, y) {
             if (foundCoords.has(`${x},${y}`)) return;
-            if (!first) {
-                first = { x, y }; render();
-            } else {
-                const word = getWord(first, { x, y });
-                const rev = word ? word.split('').reverse().join('') : "";
-                let match = targets.includes(word) ? word : (targets.includes(rev) ? rev : null);
-                if (match && !foundWords.includes(match)) {
-                    foundWords.push(match);
-                    playDoubleDingDong();
-                    triggerBlink(first, { x, y });
-                    triggerSuperShake(match); 
-                    markFound(first, { x, y });
+            const clickedChar = grid[y][x];
+
+            if (current.type === 'emoji') {
+                if (targets.includes(clickedChar) && !foundWords.includes(clickedChar)) {
+                    foundWords.push(clickedChar);
+                    foundCoords.add(`${x},${y}`);
                     if (foundWords.length === targets.length) {
-                        clearInterval(timerInterval); // 停止計時
-                        const finalTime = document.getElementById('timerDisplay').innerText;
-                        setTimeout(() => { alert(`🎊 任務完成！總共花費時間：${finalTime}`); }, 800);
+                        clearInterval(timerInterval);
+                        setTimeout(() => alert("🎉 太棒了！全部找到了！"), 300);
                     }
                 }
-                first = null; render();
-            }
-        }
-
-        function triggerSuperShake(word) {
-            const targetEl = document.getElementById(`t-${word}`);
-            if (targetEl) {
-                targetEl.classList.add('shake-effect');
-                setTimeout(() => { targetEl.classList.remove('shake-effect'); targetEl.classList.add('done'); }, 600);
-            }
-        }
-
-        function triggerBlink(p1, p2) {
-            const dx = p2.x - p1.x, dy = p2.y - p1.y, dist = Math.max(Math.abs(dx), Math.abs(dy));
-            const sx = dx === 0 ? 0 : dx / Math.abs(dx), sy = dy === 0 ? 0 : dy / Math.abs(dy);
-            for (let i = 0; i <= dist; i++) {
-                const el = document.getElementById(`c-${p1.x + i * sx}-${p1.y + i * sy}`);
-                if (el) { el.classList.add('blink-effect'); setTimeout(() => el.classList.remove('blink-effect'), 900); }
+                render();
+            } else {
+                if (!first) { first = { x, y }; render(); }
+                else {
+                    const word = getWord(first, { x, y });
+                    const rev = Array.from(word || "").reverse().join('');
+                    let match = targets.includes(word) ? word : (targets.includes(rev) ? rev : null);
+                    if (match && !foundWords.includes(match)) {
+                        foundWords.push(match);
+                        markFound(first, { x, y });
+                        if (foundWords.length === targets.length) {
+                            clearInterval(timerInterval);
+                            setTimeout(() => alert("🎊 恭喜完成挑戰！"), 300);
+                        }
+                    }
+                    first = null; render();
+                }
             }
         }
 
